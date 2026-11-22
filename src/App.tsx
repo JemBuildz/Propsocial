@@ -572,7 +572,6 @@ export default function App() {
                               key={preset.id}
                               onClick={() => {
                                 handleSelectVoicePreset(preset);
-                                handleRunAgUiVoiceAgent(preset.audioText);
                               }}
                               className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
                                 selectedVoicePreset.id === preset.id
@@ -587,6 +586,14 @@ export default function App() {
                               <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400">0:15s</span>
                             </button>
                           ))}
+                          <button
+                            onClick={() => handleRunAgUiVoiceAgent(selectedVoicePreset.audioText)}
+                            disabled={agUi.isRunning}
+                            className="w-full mt-2 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                          >
+                            <Terminal className="w-4 h-4" />
+                            <span>{agUi.isRunning ? 'Agent Streaming...' : `Run AG-UI Stream on "${selectedVoicePreset.keyword}" Preset`}</span>
+                          </button>
                         </div>
                       ) : (
                         <div className="space-y-3">

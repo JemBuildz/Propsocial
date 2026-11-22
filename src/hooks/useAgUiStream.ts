@@ -66,6 +66,14 @@ export function useAgUiStream(): UseAgUiStreamReturn {
 
   const runAgent = useCallback(
     async (prompt: string, agentId?: RunAgentOptions['agentId'], apiKey?: string) => {
+      // Cleanly resolve any stranded HITL from previous runs
+      if (hitlResolverRef.current) {
+        try {
+          hitlResolverRef.current({ approved: false, superseded: true });
+        } catch {}
+        hitlResolverRef.current = null;
+      }
+
       setIsRunning(true);
       setEvents([]);
       setCurrentThought('');

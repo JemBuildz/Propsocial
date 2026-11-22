@@ -26,8 +26,11 @@ import {
   Flame,
   Lock,
   Award,
-  PhoneCall
+  PhoneCall,
+  Terminal
 } from 'lucide-react';
+import { useAgUiStream } from './hooks/useAgUiStream';
+import { AgUiInspector } from './components/AgUiInspector';
 
 // Live Ticker Events Data
 interface TickerEvent {
@@ -243,6 +246,14 @@ export default function App() {
 
   // Ticker Rotation
   const [tickerIdx, setTickerIdx] = useState(0);
+
+  // AG-UI Protocol State
+  const agUi = useAgUiStream();
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [customVoiceNote, setCustomVoiceNote] = useState('');
+  const [isCustomMode, setIsCustomMode] = useState(false);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setTickerIdx((prev) => (prev + 1) % TICKER_EVENTS.length);
@@ -258,6 +269,29 @@ export default function App() {
     setTimeout(() => {
       setIsTranscribing(false);
     }, 450);
+  };
+
+  const handleRunAgUiVoiceAgent = async (overridePrompt?: string) => {
+    const prompt = overridePrompt || (isCustomMode && customVoiceNote ? customVoiceNote : selectedVoicePreset.audioText);
+    setVoiceApproved(false);
+    setIsTranscribing(true);
+    await agUi.runAgent(prompt, 'pocket-dealfinder', apiKey);
+    setIsTranscribing(false);
+  };
+
+  const handleRunArchNodeProbe = async (node: ArchNode) => {
+    setIsInspectorOpen(true);
+    let agentId: 'reso-poller' | 'pocket-dealfinder' | 'mls-dispatcher' | 'campaign-marketer' | 'showing-coordinator' = 'pocket-dealfinder';
+    if (node.id === 'reso') agentId = 'reso-poller';
+    else if (node.id === 'dispatcher') agentId = 'mls-dispatcher';
+    else if (node.id === 'marketer') agentId = 'campaign-marketer';
+    else if (node.id === 'coordinator') agentId = 'showing-coordinator';
+
+    await agUi.runAgent(
+      `Probe execution for node [${node.title}] (${node.type}) - ${node.summary}`,
+      agentId,
+      apiKey
+    );
   };
 
   // Handlers for Tab 3 (Sphere Game)
@@ -507,28 +541,72 @@ export default function App() {
                     </div>
 
                     <div className="pt-2 border-t border-slate-800/80">
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
-                        Click a simulated car voice note to test:
-                      </label>
-                      <div className="space-y-2.5">
-                        {VOICE_PRESETS.map((preset) => (
+                      <div className="flex items-center justify-between mb-2.5">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                          Car Voice Note Source:
+                        </label>
+                        <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-[11px] font-mono">
                           <button
-                            key={preset.id}
-                            onClick={() => handleSelectVoicePreset(preset)}
-                            className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
-                              selectedVoicePreset.id === preset.id
-                                ? 'bg-emerald-500/10 border-emerald-500/50 text-white'
-                                : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                            onClick={() => setIsCustomMode(false)}
+                            className={`px-2.5 py-1 rounded transition-colors ${
+                              !isCustomMode ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <Mic className={`w-4 h-4 ${selectedVoicePreset.id === preset.id ? 'text-emerald-400' : 'text-slate-500'}`} />
-                              <span className="text-sm font-medium">{preset.label}</span>
-                            </div>
-                            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400">0:15s</span>
+                            Presets
                           </button>
-                        ))}
+                          <button
+                            onClick={() => setIsCustomMode(true)}
+                            className={`px-2.5 py-1 rounded transition-colors ${
+                              isCustomMode ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            Custom Memo
+                          </button>
+                        </div>
                       </div>
+
+                      {!isCustomMode ? (
+                        <div className="space-y-2.5">
+                          {VOICE_PRESETS.map((preset) => (
+                            <button
+                              key={preset.id}
+                              onClick={() => {
+                                handleSelectVoicePreset(preset);
+                                handleRunAgUiVoiceAgent(preset.audioText);
+                              }}
+                              className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
+                                selectedVoicePreset.id === preset.id
+                                  ? 'bg-emerald-500/10 border-emerald-500/50 text-white'
+                                  : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <Mic className={`w-4 h-4 ${selectedVoicePreset.id === preset.id ? 'text-emerald-400' : 'text-slate-500'}`} />
+                                <span className="text-sm font-medium">{preset.label}</span>
+                              </div>
+                              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400">0:15s</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <textarea
+                            rows={3}
+                            value={customVoiceNote}
+                            onChange={(e) => setCustomVoiceNote(e.target.value)}
+                            placeholder="e.g. Just drove past a Spanish villa in Paradise Valley with a 4-car garage, pool, and guest casita. Have buyers comment CASITA for off-market pricing."
+                            className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"
+                          />
+                          <button
+                            onClick={() => handleRunAgUiVoiceAgent()}
+                            disabled={agUi.isRunning || !customVoiceNote.trim()}
+                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                          >
+                            <Terminal className="w-4 h-4" />
+                            <span>Stream via AG-UI Protocol</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl rounded-tr-none p-4 space-y-3">
@@ -539,7 +617,7 @@ export default function App() {
                         <span className="font-mono">Gemini 2.5 Multimodal</span>
                       </div>
                       <p className="text-xs sm:text-sm italic text-slate-200 leading-relaxed">
-                        {selectedVoicePreset.audioText}
+                        {isCustomMode && customVoiceNote ? customVoiceNote : selectedVoicePreset.audioText}
                       </p>
                       <div className="flex flex-wrap gap-2 pt-1">
                         {selectedVoicePreset.photos.map((photo, i) => (
@@ -557,10 +635,21 @@ export default function App() {
                     <span className="text-xs font-mono uppercase tracking-wider text-cyan-400 font-semibold">
                       STEP 2: INSTANT LEAD-MAGNET POST + COMMENT-TO-DM CLOSER
                     </span>
-                    <span className="text-xs text-emerald-400 font-mono">Generated in 2.8s</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIsInspectorOpen(true)}
+                        className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 bg-cyan-950/40 border border-cyan-500/30 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                      >
+                        <Terminal className="w-3 h-3" />
+                        <span>Inspect AG-UI</span>
+                      </button>
+                      <span className="text-xs text-emerald-400 font-mono">
+                        {agUi.isRunning ? 'Streaming...' : 'Generated in 2.8s'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className={`p-6 rounded-2xl bg-slate-900 border border-slate-800 transition-opacity duration-300 ${isTranscribing ? 'opacity-40' : 'opacity-100'}`}>
+                  <div className={`p-6 rounded-2xl bg-slate-900 border border-slate-800 transition-opacity duration-300 ${isTranscribing && !agUi.isRunning ? 'opacity-40' : 'opacity-100'}`}>
                     <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 flex items-center justify-center text-slate-950 font-extrabold text-sm">
@@ -576,8 +665,35 @@ export default function App() {
                       </span>
                     </div>
 
-                    <div className="whitespace-pre-line text-sm text-slate-200 leading-relaxed bg-slate-950/70 p-4 rounded-xl border border-slate-800/80 mb-5">
-                      {selectedVoicePreset.generatedCaption}
+                    {/* Pending HITL Notification Banner */}
+                    {agUi.pendingHitl && (
+                      <div className="p-3 bg-amber-500/15 border border-amber-500/40 rounded-xl mb-4 flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse">
+                        <span className="text-amber-300 font-bold text-xs flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span>AG-UI HITL Gate: Approval Required to Publish</span>
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => agUi.resolveHitl(agUi.pendingHitl!.toolCallId, false)}
+                            className="px-2.5 py-1 text-xs bg-red-950/80 text-red-300 border border-red-500/40 rounded-lg hover:bg-red-900 transition-colors"
+                          >
+                            Reject
+                          </button>
+                          <button
+                            onClick={() => {
+                              agUi.resolveHitl(agUi.pendingHitl!.toolCallId, true);
+                              setVoiceApproved(true);
+                            }}
+                            className="px-3.5 py-1 text-xs bg-emerald-500 text-slate-950 font-bold rounded-lg hover:bg-emerald-400 transition-colors shadow-md"
+                          >
+                            Approve Now
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="whitespace-pre-line text-sm text-slate-200 leading-relaxed bg-slate-950/70 p-4 rounded-xl border border-slate-800/80 mb-5 min-h-[120px]">
+                      {agUi.streamedText || selectedVoicePreset.generatedCaption}
                     </div>
 
                     <div className="p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30 mb-6">
@@ -597,7 +713,12 @@ export default function App() {
 
                       {!voiceApproved ? (
                         <button
-                          onClick={() => setVoiceApproved(true)}
+                          onClick={() => {
+                            if (agUi.pendingHitl) {
+                              agUi.resolveHitl(agUi.pendingHitl.toolCallId, true);
+                            }
+                            setVoiceApproved(true);
+                          }}
                           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
                         >
                           <Check className="w-4 h-4 stroke-[3]" />
@@ -850,9 +971,25 @@ export default function App() {
                 <span className="text-xs font-mono text-cyan-400">{selectedArchNode.latency}</span>
               </div>
 
-              <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-4">
                 {selectedArchNode.summary}
               </p>
+
+              <div className="flex flex-wrap items-center gap-3 mb-5">
+                <button
+                  onClick={() => handleRunArchNodeProbe(selectedArchNode)}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 hover:from-emerald-500/30 hover:to-cyan-500/30 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Execute Node via AG-UI Stream</span>
+                </button>
+                <button
+                  onClick={() => setIsInspectorOpen(true)}
+                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 hover:border-slate-500 text-slate-300 font-mono text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>Open Telemetry Inspector</span>
+                </button>
+              </div>
 
               <div className="mb-4">
                 <div className="text-xs font-mono uppercase text-slate-400 mb-2">Sample Event Payload / Output Contract:</div>
@@ -1451,6 +1588,15 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* AG-UI Telemetry Inspector Drawer */}
+      <AgUiInspector
+        stream={agUi}
+        isOpen={isInspectorOpen}
+        onToggle={() => setIsInspectorOpen(!isInspectorOpen)}
+        apiKey={apiKey}
+        setApiKey={setApiKey}
+      />
     </div>
   );
 }

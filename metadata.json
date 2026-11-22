@@ -1,0 +1,6 @@
+{
+  "name": "PropSocial AI",
+  "description": "Autonomous RESO MLS and voice-to-lead digital workforce for modern real estate agents and brokerages.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PropSocial AI — Real Estate Digital Workforce</title>
+    <meta name="description" content="Autonomous RESO MLS and voice-to-lead digital workforce for modern real estate agents and brokerages." />
+    <meta property="og:title" content="PropSocial AI — Real Estate Digital Workforce" />
+    <meta property="og:description" content="Autonomous RESO MLS and voice-to-lead digital workforce for modern real estate agents and brokerages." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        function isExtErr(e) {
+          if (!e) return false;
+          var msg = typeof e === 'string' ? e : (e.message || (e.reason && e.reason.message) || '');
+          var stack = e.stack || (e.reason && e.reason.stack) || '';
+          var fn = e.filename || '';
+          return (
+            fn.indexOf('chrome-extension://') !== -1 ||
+            fn.indexOf('moz-extension://') !== -1 ||
+            stack.indexOf('chrome-extension://') !== -1 ||
+            stack.indexOf('moz-extension://') !== -1 ||
+            msg.indexOf('Could not establish connection') !== -1 ||
+            msg.indexOf('Receiving end does not exist') !== -1 ||
+            msg.indexOf("reading 'allowed'") !== -1 ||
+            msg.indexOf('hobjkcpmjhlegmobgonaagepfckjkceh') !== -1
+          );
+        }
+        window.addEventListener('error', function(ev) {
+          if (isExtErr(ev.error || ev)) {
+            ev.stopImmediatePropagation();
+            ev.preventDefault();
+            return true;
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(ev) {
+          if (isExtErr(ev.reason)) {
+            ev.stopImmediatePropagation();
+            ev.preventDefault();
+          }
+        }, true);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
